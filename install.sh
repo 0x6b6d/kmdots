@@ -2,8 +2,11 @@
 #
 # kmdots installer
 #
-# Symlinks dotfiles from ~/.kmdots into $HOME, and symlinks the
-# oh-my-zsh theme into the omz custom themes dir (if/when omz exists).
+# Symlinks dotfiles from ~/.kmdots into $HOME, and symlinks EVERY
+# *.zsh-theme file from ~/.kmdots/themes/ into the oh-my-zsh custom
+# themes dir (if/when omz exists).
+#
+# To add a new theme: drop it into themes/ in the repo and re-run this script.
 #
 # Safe to re-run at any time (e.g. after installing oh-my-zsh later) —
 # it will just fix up whatever's missing. If it's already at ~/.kmdots,
@@ -25,7 +28,12 @@ declare -A DOTFILES=(
     [".tmux.conf"]="$HOME/.tmux.conf"
 )
 
-THEME_FILE="themes/kali-like.zsh-theme"
+# Directory in the repo that holds oh-my-zsh themes (every *.zsh-theme in it
+# gets symlinked).
+THEMES_DIR_IN_REPO="themes"
+
+# Set to 1 by install_themes if at least one theme was linked.
+THEMES_INSTALLED=0
 
 # ---------------------------------------------------------------------------
 
@@ -97,11 +105,13 @@ resolve_omz_custom_themes_dir() {
     fi
 }
 
-install_theme() {
-    local theme_src="$REPO_DIR/$THEME_FILE"
+# Symlinks every *.zsh-theme from the repo's themes/ dir into omz's custom
+# themes dir. New theme = drop the file in the repo + re-run this script.
+install_themes() {
+    local themes_src="$REPO_DIR/$THEMES_DIR_IN_REPO"
 
-    if [ ! -f "$theme_src" ]; then
-        warn "Theme file $theme_src not found, skipping theme install"
+    if [ ! -d "$themes_src" ]; then
+        warn "Themes dir $themes_src not found, skipping theme install"
         return
     fi
 
@@ -109,14 +119,24 @@ install_theme() {
     themes_dir="$(resolve_omz_custom_themes_dir)"
 
     if [ -z "$themes_dir" ]; then
-        warn "oh-my-zsh not detected — skipping theme symlink for now."
+        warn "oh-my-zsh not detected — skipping theme symlinks for now."
         warn "Re-run this script (./install.sh) after installing oh-my-zsh"
-        warn "and it'll pick the theme up then."
+        warn "and it'll pick the themes up then."
         return
     fi
 
     mkdir -p "$themes_dir"
-    link_file "$theme_src" "$themes_dir/$(basename "$THEME_FILE")"
+
+    local theme
+    for theme in "$themes_src"/*.zsh-theme; do
+        [ -f "$theme" ] || continue   # glob matched nothing
+        link_file "$theme" "$themes_dir/$(basename "$theme")"
+        THEMES_INSTALLED=1
+    done
+
+    if [ "$THEMES_INSTALLED" -eq 0 ]; then
+        warn "No *.zsh-theme files found in $themes_src"
+    fi
 }
 
 # If this script is being run from somewhere other than ~/.kmdots
@@ -164,7 +184,7 @@ main() {
     for repo_rel in "${!DOTFILES[@]}"; do
         printf '  %s -> %s\n' "${DOTFILES[$repo_rel]}" "$repo_rel"
     done
-    echo "  (and the oh-my-zsh theme, if oh-my-zsh is installed)"
+    echo "  (and every oh-my-zsh theme in $THEMES_DIR_IN_REPO/, if oh-my-zsh is installed)"
     echo
     warn "Any existing REAL files (not symlinks) at those locations will be"
     warn "moved to a backup dir: $BACKUP_DIR"
@@ -176,19 +196,27 @@ main() {
     fi
 
     install_dotfiles
-    install_theme
+    install_themes
 
     echo
     ok "Done. To update in the future:"
     echo "    cd $REPO_DIR && git pull"
-    echo "  (re-run ./install.sh only if you add new files to manage,"
-    echo "   or want the theme picked up after installing oh-my-zsh)"
+    echo "  (re-run ./install.sh only if you add new files/themes to manage,"
+    echo "   or want the themes picked up after installing oh-my-zsh)"
+
+    if [ "$THEMES_INSTALLED" -eq 1 ]; then
+        echo
+        info "Themes are symlinked. Pick one with ZSH_THEME in ~/.zshrc, e.g.:"
+        echo "    ZSH_THEME=\"kali-like-reactive\"   # uses your terminal's colors (follows the wallpaper)"
+        echo "    ZSH_THEME=\"kali-like\"            # static, hardcoded colors"
+        info "Want static colors? Just remove \"-reactive\" from the theme name."
+    fi
+
     echo
     warn "Restart your terminal session, or source the relevant rc file,"
     warn "for these changes to take effect:"
     echo "    source ~/.bashrc   # if you're on bash"
     echo "    source ~/.zshrc    # if you're on zsh"
-
 }
 
 main "$@"
