@@ -108,3 +108,5 @@ if [ -f ~/.bash_aliases ]; then
 fi
 
 nfetch
+
+export PATH=$PATH:/home/kurai/.spicetify
