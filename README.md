@@ -5,7 +5,7 @@ Oneliner below clones the repo, makes the installer executable, and runs it. Pic
 ### GitHub
 
 ```sh
-git clone https://github.com/kurai-murasaki/kmdots.git ~/.kmdots && chmod +x ~/.kmdots/install.sh && ~/.kmdots/install.sh
+git clone https://github.com/0x6b6d/kmdots.git ~/.kmdots && chmod +x ~/.kmdots/install.sh && ~/.kmdots/install.sh
 ```
 
 ### Codeberg
